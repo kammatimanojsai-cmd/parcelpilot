@@ -40,6 +40,8 @@ ParcelPilot is a parcel delivery **quote and tracking API** for India, built wit
 
 ## Data-driven tests
 
+**Latest run: 400 test cases, 0 failures, 99.4% line and 97.8% branch coverage** (see the [test report](https://kammatimanojsai-cmd.github.io/parcelpilot/)).
+
 | Test data | Drives | JUnit 5 feature |
 |---|---|---|
 | `quotes.csv` | Full itemised bills (zone, weights, every charge, total) | `@CsvFileSource` + two custom `ArgumentsAggregator`s |
