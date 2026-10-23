@@ -1,0 +1,16 @@
+origin,destination,expectedZone,why
+500001,500032,LOCAL,same sorting district (500)
+500032,500001,LOCAL,zones are symmetric
+110001,110092,LOCAL,Delhi to Delhi
+500001,506002,STATE,same sub-region (50)
+400001,411001,REGIONAL,Mumbai to Pune share only region 4
+560001,600001,NATIONAL,Bengaluru to Chennai cross regions 5 and 6
+500001,530001,REGIONAL,Hyderabad to Visakhapatnam share region 5
+110001,400001,NATIONAL,Delhi to Mumbai
+682001,110001,NATIONAL,Kochi to Delhi
+110001,795001,REMOTE,Manipur is a remote area
+795001,110001,REMOTE,remote at the origin too
+190001,180001,REMOTE,Srinagar to Jammu
+600001,744101,REMOTE,Port Blair
+744101,744103,LOCAL,same district inside a remote area
+781001,110001,NATIONAL,Guwahati (78) is not remote

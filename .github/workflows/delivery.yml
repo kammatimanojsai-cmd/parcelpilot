@@ -1,0 +1,156 @@
+name: Delivery pipeline
+
+# build → unit tests → integration tests → coverage gate → package → container smoke test
+#       → publish image (main/tags) → publish test report (main) → GitHub release (v* tags)
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delivery-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  build-test:
+    name: Build, test, coverage gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compile
+        run: mvn -B -ntp compile
+
+      - name: Unit tests (Surefire)
+        run: mvn -B -ntp test
+
+      - name: Integration tests + coverage gate (Failsafe, JaCoCo)
+        run: mvn -B -ntp verify -DskipUnitTests=true
+
+      - name: Build test report
+        if: always()
+        run: python3 scripts/test_report.py --out site --summary "$GITHUB_STEP_SUMMARY" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: site
+          if-no-files-found: error
+
+      - name: Upload raw JUnit XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-xml
+          path: |
+            target/surefire-reports/*.xml
+            target/failsafe-reports/*.xml
+          if-no-files-found: warn
+
+      - name: Upload application jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/parcelpilot.jar
+          if-no-files-found: error
+
+  package:
+    name: Container image + smoke test
+    needs: build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target
+
+      - name: Build image
+        run: docker build --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" --label "org.opencontainers.image.revision=${{ github.sha }}" -t parcelpilot:ci .
+
+      - name: Smoke test the container
+        run: |
+          docker run -d --name pp -p 8080:8080 parcelpilot:ci
+          bash scripts/smoke.sh http://localhost:8080 || { docker logs pp; exit 1; }
+
+      - name: Publish image to GitHub Container Registry
+        if: github.event_name == 'push'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          tags="$IMAGE:sha-${GITHUB_SHA::7}"
+          if [[ "$GITHUB_REF" == refs/heads/main ]]; then tags="$tags $IMAGE:latest"; fi
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then tags="$tags $IMAGE:${GITHUB_REF_NAME#v}"; fi
+          for t in $tags; do docker tag parcelpilot:ci "$t"; docker push "$t"; echo "Pushed $t" >> "$GITHUB_STEP_SUMMARY"; done
+
+  publish-report:
+    name: Publish test report (GitHub Pages)
+    needs: [build-test, package]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-report
+          path: site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+  release:
+    name: GitHub release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-report
+          path: report
+
+      - name: Create release with the tested jar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          (cd report && zip -qr ../dist/test-report.zip .)
+          gh release create "$GITHUB_REF_NAME" dist/parcelpilot.jar dist/test-report.zip \
+            --repo "$GITHUB_REPOSITORY" --title "ParcelPilot $GITHUB_REF_NAME" --generate-notes \
+            --notes "Container image: \`$IMAGE:${GITHUB_REF_NAME#v}\`"

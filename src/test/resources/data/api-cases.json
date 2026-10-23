@@ -1,0 +1,464 @@
+[
+  {
+    "name": "quote: same city, first slab",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "500001",
+      "destinationPincode": "500032",
+      "weightGrams": 400,
+      "lengthCm": 20,
+      "widthCm": 15,
+      "heightCm": 5,
+      "service": "STANDARD",
+      "cashOnDelivery": false,
+      "declaredValue": 0
+    },
+    "status": 200,
+    "expect": {
+      "$.zone": "LOCAL",
+      "$.zoneLabel": "Same city",
+      "$.chargeableWeightGrams": 500,
+      "$.totalPaise": 4626,
+      "$.total": "₹46.26",
+      "$.charges.length()": 3,
+      "$.charges[0].code": "FREIGHT",
+      "$.charges[1].amount": "₹4.20",
+      "$.charges[2].code": "GST",
+      "$.eta.pickupDate": "2026-10-22",
+      "$.eta.estimatedDelivery": "2026-10-23",
+      "$.eta.transitDays": 1
+    }
+  },
+  {
+    "name": "quote: COD and insurance lines",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "400001",
+      "destinationPincode": "110001",
+      "weightGrams": 4500,
+      "lengthCm": 45,
+      "widthCm": 35,
+      "heightCm": 25,
+      "service": "EXPRESS",
+      "cashOnDelivery": true,
+      "declaredValue": 50000
+    },
+    "status": 200,
+    "expect": {
+      "$.zone": "NATIONAL",
+      "$.volumetricWeightGrams": 7875,
+      "$.chargeableWeightGrams": 8000,
+      "$.charges.length()": 5,
+      "$.charges[2].code": "COD_FEE",
+      "$.charges[2].amountPaise": 100000,
+      "$.charges[3].code": "INSURANCE",
+      "$.totalPaise": 305035,
+      "$.total": "₹3,050.35",
+      "$.eta.estimatedDelivery": "2026-10-26"
+    }
+  },
+  {
+    "name": "quote: rupees with paise are accepted",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "500001",
+      "destinationPincode": "500032",
+      "weightGrams": 1001,
+      "lengthCm": 10,
+      "widthCm": 10,
+      "heightCm": 10,
+      "service": "EXPRESS",
+      "cashOnDelivery": true,
+      "declaredValue": 3000.25
+    },
+    "status": 200,
+    "expect": {
+      "$.charges[2].amountPaise": 6001,
+      "$.totalPaise": 22940
+    }
+  },
+  {
+    "name": "quote: same day across cities is refused",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "500001",
+      "destinationPincode": "110001",
+      "weightGrams": 400,
+      "lengthCm": 20,
+      "widthCm": 15,
+      "heightCm": 5,
+      "service": "SAME_DAY",
+      "cashOnDelivery": false,
+      "declaredValue": 0
+    },
+    "status": 422,
+    "expect": {
+      "$.code": "SAME_DAY_UNAVAILABLE",
+      "$.status": 422,
+      "$.title": "Unprocessable Entity"
+    }
+  },
+  {
+    "name": "quote: invalid PIN code",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "012345",
+      "destinationPincode": "500032",
+      "weightGrams": 400,
+      "lengthCm": 20,
+      "widthCm": 15,
+      "heightCm": 5,
+      "service": "STANDARD",
+      "cashOnDelivery": false,
+      "declaredValue": 0
+    },
+    "status": 400,
+    "expect": {
+      "$.code": "INVALID_PINCODE"
+    }
+  },
+  {
+    "name": "quote: oversize parcel",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "500001",
+      "destinationPincode": "500032",
+      "weightGrams": 400,
+      "lengthCm": 150,
+      "widthCm": 40,
+      "heightCm": 36,
+      "service": "STANDARD",
+      "cashOnDelivery": false,
+      "declaredValue": 0
+    },
+    "status": 422,
+    "expect": {
+      "$.code": "OVERSIZE"
+    }
+  },
+  {
+    "name": "quote: zero weight",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "500001",
+      "destinationPincode": "500032",
+      "weightGrams": 0,
+      "lengthCm": 20,
+      "widthCm": 15,
+      "heightCm": 5,
+      "service": "STANDARD",
+      "cashOnDelivery": false,
+      "declaredValue": 0
+    },
+    "status": 400,
+    "expect": {
+      "$.code": "WEIGHT_OUT_OF_RANGE"
+    }
+  },
+  {
+    "name": "quote: COD above 50000",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "500001",
+      "destinationPincode": "500032",
+      "weightGrams": 400,
+      "lengthCm": 20,
+      "widthCm": 15,
+      "heightCm": 5,
+      "service": "STANDARD",
+      "cashOnDelivery": true,
+      "declaredValue": 50000.01
+    },
+    "status": 422,
+    "expect": {
+      "$.code": "COD_LIMIT_EXCEEDED"
+    }
+  },
+  {
+    "name": "quote: missing service",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "500001",
+      "destinationPincode": "500032",
+      "weightGrams": 400,
+      "lengthCm": 20,
+      "widthCm": 15,
+      "heightCm": 5,
+      "cashOnDelivery": false,
+      "declaredValue": 0
+    },
+    "status": 400,
+    "expect": {
+      "$.code": "VALIDATION_FAILED",
+      "$.errors[0].field": "service"
+    }
+  },
+  {
+    "name": "quote: missing destination",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "500001",
+      "destinationPincode": "",
+      "weightGrams": 400,
+      "lengthCm": 20,
+      "widthCm": 15,
+      "heightCm": 5,
+      "service": "STANDARD",
+      "cashOnDelivery": false,
+      "declaredValue": 0
+    },
+    "status": 400,
+    "expect": {
+      "$.code": "VALIDATION_FAILED",
+      "$.errors[0].field": "destinationPincode"
+    }
+  },
+  {
+    "name": "quote: fractions of a paisa",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "500001",
+      "destinationPincode": "500032",
+      "weightGrams": 400,
+      "lengthCm": 20,
+      "widthCm": 15,
+      "heightCm": 5,
+      "service": "STANDARD",
+      "cashOnDelivery": false,
+      "declaredValue": 10.001
+    },
+    "status": 400,
+    "expect": {
+      "$.code": "VALIDATION_FAILED",
+      "$.errors[0].field": "declaredValue"
+    }
+  },
+  {
+    "name": "quote: negative declared value",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "500001",
+      "destinationPincode": "500032",
+      "weightGrams": 400,
+      "lengthCm": 20,
+      "widthCm": 15,
+      "heightCm": 5,
+      "service": "STANDARD",
+      "cashOnDelivery": false,
+      "declaredValue": -1
+    },
+    "status": 400,
+    "expect": {
+      "$.code": "VALIDATION_FAILED"
+    }
+  },
+  {
+    "name": "quote: unknown service level",
+    "method": "POST",
+    "path": "/api/quotes",
+    "body": {
+      "originPincode": "500001",
+      "destinationPincode": "500032",
+      "weightGrams": 400,
+      "lengthCm": 20,
+      "widthCm": 15,
+      "heightCm": 5,
+      "service": "TELEPORT",
+      "cashOnDelivery": false,
+      "declaredValue": 0
+    },
+    "status": 400,
+    "expect": {
+      "$.code": "MALFORMED_REQUEST"
+    }
+  },
+  {
+    "name": "quote: body is not JSON",
+    "method": "POST",
+    "path": "/api/quotes",
+    "rawBody": "{not json",
+    "status": 400,
+    "expect": {
+      "$.code": "MALFORMED_REQUEST"
+    }
+  },
+  {
+    "name": "quote: GET is not allowed",
+    "method": "GET",
+    "path": "/api/quotes",
+    "status": 405
+  },
+  {
+    "name": "booking: receiver name is required",
+    "method": "POST",
+    "path": "/api/shipments",
+    "body": {
+      "parcel": {
+        "originPincode": "500001",
+        "destinationPincode": "500032",
+        "weightGrams": 400,
+        "lengthCm": 20,
+        "widthCm": 15,
+        "heightCm": 5,
+        "service": "STANDARD",
+        "cashOnDelivery": false,
+        "declaredValue": 0
+      },
+      "receiverName": " "
+    },
+    "status": 400,
+    "expect": {
+      "$.code": "VALIDATION_FAILED",
+      "$.errors[0].field": "receiverName"
+    }
+  },
+  {
+    "name": "booking: parcel is validated too",
+    "method": "POST",
+    "path": "/api/shipments",
+    "body": {
+      "parcel": {
+        "originPincode": "500001",
+        "destinationPincode": "500032",
+        "weightGrams": null,
+        "lengthCm": 20,
+        "widthCm": 15,
+        "heightCm": 5,
+        "service": "STANDARD",
+        "cashOnDelivery": false,
+        "declaredValue": 0
+      },
+      "receiverName": "Asha"
+    },
+    "status": 400,
+    "expect": {
+      "$.code": "VALIDATION_FAILED",
+      "$.errors[0].field": "parcel.weightGrams"
+    }
+  },
+  {
+    "name": "booking: business rules apply",
+    "method": "POST",
+    "path": "/api/shipments",
+    "body": {
+      "parcel": {
+        "originPincode": "500001",
+        "destinationPincode": "400001",
+        "weightGrams": 400,
+        "lengthCm": 20,
+        "widthCm": 15,
+        "heightCm": 5,
+        "service": "SAME_DAY",
+        "cashOnDelivery": false,
+        "declaredValue": 0
+      },
+      "receiverName": "Asha"
+    },
+    "status": 422,
+    "expect": {
+      "$.code": "SAME_DAY_UNAVAILABLE"
+    }
+  },
+  {
+    "name": "tracking: malformed number",
+    "method": "GET",
+    "path": "/api/shipments/PP123",
+    "status": 400,
+    "expect": {
+      "$.code": "INVALID_TRACKING_ID"
+    }
+  },
+  {
+    "name": "tracking: wrong check digit",
+    "method": "GET",
+    "path": "/api/shipments/PP1234567890",
+    "status": 400,
+    "expect": {
+      "$.code": "INVALID_TRACKING_ID"
+    }
+  },
+  {
+    "name": "tracking: valid but unknown",
+    "method": "GET",
+    "path": "/api/shipments/PP1234567897",
+    "status": 404,
+    "expect": {
+      "$.code": "SHIPMENT_NOT_FOUND"
+    }
+  },
+  {
+    "name": "event: unknown shipment",
+    "method": "POST",
+    "path": "/api/shipments/PP1234567897/events",
+    "body": {
+      "status": "PICKED_UP",
+      "location": "Hub"
+    },
+    "status": 404,
+    "expect": {
+      "$.code": "SHIPMENT_NOT_FOUND"
+    }
+  },
+  {
+    "name": "event: unknown status",
+    "method": "POST",
+    "path": "/api/shipments/PP1234567897/events",
+    "body": {
+      "status": "LOST_IN_SPACE",
+      "location": "Hub"
+    },
+    "status": 400,
+    "expect": {
+      "$.code": "MALFORMED_REQUEST"
+    }
+  },
+  {
+    "name": "event: location is required",
+    "method": "POST",
+    "path": "/api/shipments/PP1234567897/events",
+    "body": {
+      "status": "PICKED_UP"
+    },
+    "status": 400,
+    "expect": {
+      "$.code": "VALIDATION_FAILED",
+      "$.errors[0].field": "location"
+    }
+  },
+  {
+    "name": "health probe is up",
+    "method": "GET",
+    "path": "/actuator/health",
+    "status": 200,
+    "expect": {
+      "$.status": "UP"
+    }
+  },
+  {
+    "name": "build info is exposed",
+    "method": "GET",
+    "path": "/actuator/info",
+    "status": 200,
+    "expect": {
+      "$.build.artifact": "parcelpilot"
+    }
+  },
+  {
+    "name": "unknown API path",
+    "method": "GET",
+    "path": "/api/nothing-here",
+    "status": 404
+  }
+]
