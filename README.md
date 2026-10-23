@@ -2,7 +2,8 @@
 
 [![Delivery pipeline](https://github.com/kammatimanojsai-cmd/parcelpilot/actions/workflows/delivery.yml/badge.svg)](https://github.com/kammatimanojsai-cmd/parcelpilot/actions/workflows/delivery.yml)
 
-**Test report:** https://kammatimanojsai-cmd.github.io/parcelpilot/ (published by the pipeline on every push to `main`)
+**Test report:** https://kammatimanojsai-cmd.github.io/parcelpilot/ (published by the pipeline on every push to `main`)  
+**Container image:** `ghcr.io/kammatimanojsai-cmd/parcelpilot:latest`
 
 ParcelPilot is a parcel delivery **quote and tracking API** for India, built with Java 21 and Spring Boot. It's a showcase for:
 
